@@ -1,53 +1,42 @@
 /********* alipay.m Cordova Plugin Implementation *******/
-
-#import "alipay.h"
+#import "Alipay.h"
 #import <AlipaySDK/AlipaySDK.h>
 
-@implementation alipay
+@implementation Alipay
 
-#pragma mark "API"
-- (void)pluginInitialize {
-    CDVViewController *viewController = (CDVViewController *)self.viewController;
-    app_id = [viewController.settings objectForKey:@"alipayid"];
+@synthesize appId, callbackId;
+
+-(void)pluginInitialize
+{
+    self.appId = [[self.commandDelegate settings] objectForKey:@"alipayid"];
 }
 
-- (void)payment:(CDVInvokedUrlCommand*)command
+- (void)pay:(CDVInvokedUrlCommand*)command
 {
-    callbackId = command.callbackId;
+    self.callbackId = command.callbackId;
     NSString* orderString = [command.arguments objectAtIndex:0];
-    NSString* appScheme = [NSString stringWithFormat:@"ali%@", app_id];
+
+    if (!orderString) {
+      /**  [self.commandDelegate sendPluginResult:[CDVPluginResult initWithStatus:CDVCommandStatus_ERROR message:orderString] 
+            callbackId:self.callbackId];
+        **/
+          CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"pay not success"];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+
+    NSString* appScheme = [NSString stringWithFormat:@"ali%@", self.appId];
     [[AlipaySDK defaultService] payOrder:orderString fromScheme:appScheme callback:^(NSDictionary *resultDic) {
         CDVPluginResult* pluginResult;
         
         if ([[resultDic objectForKey:@"resultStatus"]  isEqual: @"9000"]) {
             pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:resultDic];
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
         } else {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:resultDic];
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:resultDic]; 
         }
+
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
         
     }];
-}
-
-- (void)handleOpenURL:(NSNotification *)notification {
-    NSURL* url = [notification object];
-    
-    if ([url isKindOfClass:[NSURL class]] && [url.scheme isEqualToString:[NSString stringWithFormat:@"ali%@", app_id]])
-    {
-        [[AlipaySDK defaultService] processOrderWithPaymentResult:url standbyCallback:^(NSDictionary *resultDic) {
-            
-            CDVPluginResult* pluginResult;
-            
-            if ([[resultDic objectForKey:@"resultStatus"]  isEqual: @"9000"]) {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:resultDic];
-                [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
-            } else {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:resultDic];
-                [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
-            }
-        }];
-    }
 }
 
 @end
